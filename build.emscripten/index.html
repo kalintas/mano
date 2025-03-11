@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Mano Computer Emulator</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #2d2d2d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            border: 1px solid #666;
+            /* Prevent text selection */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            outline: none;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+        }
+    </style>
+    <script type="text/javascript">
+        var Module = {
+            print: function(text) { 
+                console.log("WASM:", text); 
+            },
+            printErr: function(text) { 
+                console.error("WASM Error:", text);
+            },
+            canvas: (function() {
+                var canvas = document.createElement('canvas');
+                canvas.id = 'canvas';
+                
+                // Get the device pixel ratio
+                var dpr = window.devicePixelRatio || 1;
+                
+                // Set the canvas size with the device pixel ratio
+                canvas.width = 1280 * dpr;
+                canvas.height = 720 * dpr;
+                
+                // Scale down the canvas with CSS
+                canvas.style.width = '1280px';
+                canvas.style.height = '720px';
+                
+                return canvas;
+            })(),
+            onRuntimeInitialized: function() {
+                console.log("Runtime initialized");
+                try {
+                    console.log("Creating Application");
+                    var app = new Module.Application();
+                    console.log("Initializing");
+                    app.start();
+                    console.log("Application running...");
+                } catch (e) {
+                    // Only log real errors, not the emscripten unwind
+                    if (e.toString() !== "unwind") {
+                        console.error("Error:", e);
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('canvas-container').appendChild(Module.canvas);
+        });
+    </script>
+    <script async type="text/javascript" src="mano.js"></script>
+</body>
+</html>
+
