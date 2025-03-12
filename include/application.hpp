@@ -1,10 +1,11 @@
 #ifndef MONO_APPLICATION_HPP
 #define MONO_APPLICATION_HPP
 
+#include <SDL2/SDL.h>
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
-#include "emulator.hpp"
+#include "emulator/emulator.hpp"
 
 namespace mono {
 
@@ -20,9 +21,9 @@ class Application {
 
   private:
     mano::Emulator emulator;
+
     SDL_Window* window;
     SDL_GLContext gl_context;
-    bool show_demo_window = true;
 };
 } // namespace mono
 

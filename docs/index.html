@@ -2,7 +2,8 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Mano Computer Emulator</title>
+    <title>Mano Emulator</title>
+    <link rel="icon" type="image/png" href="favicon.png"/>
     <style>
         body {
             margin: 0;
@@ -57,7 +58,6 @@
                     var app = new Module.Application();
                     console.log("Initializing");
                     app.start();
-                    console.log("Application running...");
                 } catch (e) {
                     // Only log real errors, not the emscripten unwind
                     if (e.toString() !== "unwind") {

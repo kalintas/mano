@@ -2,22 +2,27 @@ Mano emulator in C++
 
 # Installation<br>
 First install the Emscripten.
+```
 https://emscripten.org/docs/getting_started/downloads.html
-Im using vcpkg for package managing, install required packages:
-Be sure to install it in emscripten triplet.
+```
+Install required packages using vcpkg (make sure to use the emscripten triplet):
 ```
 vcpkg install sdl2:wasm32-emscripten
 vcpkg install imgui:wasm32-emscripten
 
 vcpkg integrate install
 ```
-After that you should run the build script and the cmake.
+After that run the build script to configure the build.
+Edit `build.sh` to update vcpkg and emsdk paths to match your system
 ```
 bash build.sh or ./build.sh
+```
+And finally build the project.
+```
 cmake --build build
 ```
 # Running locally 
-To run on the local you must use emrun:
+You must use emrun to run the emulator locally.
 ```
 emrun docs/index.html
 ```

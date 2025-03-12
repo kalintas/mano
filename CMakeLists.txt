@@ -11,7 +11,7 @@ set(MANO_SRC_DIR     "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(
     MANO_SRC_FILES 
     "${MANO_SRC_DIR}/application.cpp" 
-    "${MANO_SRC_DIR}/emulator.cpp" 
+    "${MANO_SRC_DIR}/emulator/emulator.cpp" 
 )
 
 set(MANO_IMGUI_BACKEND_DIR "${CMAKE_CURRENT_SOURCE_DIR}/imgui-backend")

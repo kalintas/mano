@@ -1,5 +1,7 @@
 #include <emscripten/html5.h>
 
+#include <iostream>
+
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
@@ -22,17 +24,13 @@ void main_loop(void* arg) {
     }
 }
 
-Application::Application() : window(nullptr), gl_context(nullptr) {
-    printf("Application constructor called\n");
-}
+Application::Application() : window(nullptr), gl_context(nullptr) {}
 
 bool Application::start() {
-    printf("Initializing Application\n");
-
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER)
         != 0) {
-        printf("Error: SDL_Init failed: %s\n", SDL_GetError());
+        std::cerr << "Error: SDL_Init failed: " << SDL_GetError() << std::endl;
         return false;
     }
 
@@ -48,11 +46,10 @@ bool Application::start() {
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_WindowFlags window_flags =
-        (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+        static_cast<SDL_WindowFlags>(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
-    printf("Creating window\n");
     window = SDL_CreateWindow(
-        "Mano Computer",
+        "Mano Emulator",
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
         1280,
@@ -60,21 +57,22 @@ bool Application::start() {
         window_flags
     );
     if (!window) {
-        printf("Error: Window creation failed: %s\n", SDL_GetError());
+        std::cerr << "Error: Window creation failed: " << SDL_GetError()
+                  << std::endl;
         return false;
     }
 
     printf("Creating GL context\n");
     gl_context = SDL_GL_CreateContext(window);
     if (!gl_context) {
-        printf("Error: OpenGL context creation failed: %s\n", SDL_GetError());
+        std::cerr << "Error: OpenGL context creation failed: " << SDL_GetError()
+                  << std::endl;
         return false;
     }
 
     SDL_GL_MakeCurrent(window, gl_context);
 
     // Setup Dear ImGui context
-    printf("Setting up ImGui\n");
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -84,9 +82,9 @@ bool Application::start() {
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    std::cout << "Initialization complete\n";
     // Store instance and set up emscripten main loop
     emscripten_set_main_loop_arg(main_loop, this, -1, true);
-    printf("Initialization complete\n");
     return true;
 }
 
@@ -103,6 +101,7 @@ void Application::update() {
     ImGui::NewFrame();
 
     // Show the demo window
+    bool show_demo_window = true;
     ImGui::ShowDemoWindow(&show_demo_window);
 }
 
@@ -112,8 +111,8 @@ void Application::render() {
     glViewport(
         0,
         0,
-        (int)ImGui::GetIO().DisplaySize.x,
-        (int)ImGui::GetIO().DisplaySize.y
+        static_cast<int>(ImGui::GetIO().DisplaySize.x),
+        static_cast<int>(ImGui::GetIO().DisplaySize.y)
     );
     glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -122,7 +121,6 @@ void Application::render() {
 }
 
 Application::~Application() {
-    printf("Application destructor called\n");
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
