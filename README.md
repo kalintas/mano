@@ -19,5 +19,5 @@ cmake --build build
 # Running locally 
 To run on the local you must use emrun:
 ```
-emrun build.emscripten/index.html
+emrun docs/index.html
 ```
