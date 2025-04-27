@@ -1,4 +1,4 @@
-Mano emulator in C++
+Mano simulator in C++
 
 # Installation<br>
 First install the Emscripten.
@@ -22,7 +22,7 @@ And finally build the project.
 cmake --build build
 ```
 # Running locally 
-You must use emrun to run the emulator locally.
+You must use emrun to run the simulator locally.
 ```
 emrun docs/index.html
 ```

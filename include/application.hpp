@@ -5,9 +5,15 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
-#include "emulator/emulator.hpp"
+#include <memory>
+#include <string>
 
-namespace mono {
+#include "emulator/assembler.hpp"
+#include "emulator/emulator.hpp"
+#include "imgui.h"
+#include "ui/scheme.hpp"
+
+namespace mano {
 
 class Application {
   public:
@@ -20,17 +26,24 @@ class Application {
     void render();
 
   private:
-    mano::Emulator emulator;
+    Assembler assembler;
+    std::unique_ptr<mano::Emulator> emulator;
 
-    SDL_Window* window;
-    SDL_GLContext gl_context;
+    mano::ui::Scheme scheme;
+    std::string input_code;
+    std::string user_input;
+
+    SDL_Window* window = nullptr;
+    SDL_GLContext gl_context = nullptr;
+
+    ImFont* code_font = nullptr;
 };
-} // namespace mono
+} // namespace mano
 
 EMSCRIPTEN_BINDINGS(module) {
-    emscripten::class_<mono::Application>("Application")
+    emscripten::class_<mano::Application>("Application")
         .constructor<>()
-        .function("start", &mono::Application::start);
+        .function("start", &mano::Application::start);
 }
 
 #endif

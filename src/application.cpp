@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl2.h"
+#include "imgui_stdlib.h"
 
 #if defined(IMGUI_IMPL_OPENGL_ES2)
     #include <SDL_opengles2.h>
@@ -12,9 +13,30 @@
     #include <SDL_opengl.h>
 #endif
 
+#include "emulator/instructions.hpp"
+
 #include "application.hpp"
 
-namespace mono {
+namespace mano {
+
+static constexpr std::size_t SCREEN_WIDTH = 1280;
+static constexpr std::size_t SCREEN_HEIGHT = 720;
+static constexpr float FSCREEN_WIDTH = static_cast<float>(SCREEN_WIDTH);
+static constexpr float FSCREEN_HEIGHT = static_cast<float>(SCREEN_HEIGHT);
+
+static constexpr auto EXAMPLE_CODE =
+    R"(ORG 000  
+LDA N1  
+ADD N2  
+STA RES  
+HLT  
+
+ORG 100  
+N1, DEC 5  
+N2, DEC 3  
+RES, DEC 0  
+
+END)";
 
 void main_loop(void* arg) {
     Application* app = static_cast<Application*>(arg);
@@ -24,7 +46,12 @@ void main_loop(void* arg) {
     }
 }
 
-Application::Application() : window(nullptr), gl_context(nullptr) {}
+Application::Application() :
+    scheme(FSCREEN_WIDTH * 0.5f, 0, FSCREEN_WIDTH * 0.5f, FSCREEN_HEIGHT),
+    input_code(EXAMPLE_CODE) {
+    
+    emulator = std::make_unique<Emulator>(assembler.assemble(EXAMPLE_CODE).value());
+}
 
 bool Application::start() {
     // Initialize SDL
@@ -49,11 +76,11 @@ bool Application::start() {
         static_cast<SDL_WindowFlags>(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
 
     window = SDL_CreateWindow(
-        "Mano Emulator",
+        "Mano",
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
-        1280,
-        720,
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
         window_flags
     );
     if (!window) {
@@ -62,7 +89,7 @@ bool Application::start() {
         return false;
     }
 
-    printf("Creating GL context\n");
+    std::cout << "Creating GL context\n";
     gl_context = SDL_GL_CreateContext(window);
     if (!gl_context) {
         std::cerr << "Error: OpenGL context creation failed: " << SDL_GetError()
@@ -78,6 +105,15 @@ bool Application::start() {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
+    // First add the default font
+    io.Fonts->AddFontDefault();
+
+    // Then add a larger font for the code editor
+    ImFontConfig font_config;
+    font_config.SizePixels = 20.0f;
+    code_font = io.Fonts->AddFontDefault(&font_config);
+    io.Fonts->Build();
+
     // Setup Platform/Renderer backends
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init(glsl_version);
@@ -89,33 +125,156 @@ bool Application::start() {
 }
 
 void Application::update() {
-    // Handle SDL events
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL2_ProcessEvent(&event);
     }
 
-    // Start the Dear ImGui frame
+    scheme.update(*emulator);
+}
+
+void Application::render() {
+    glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
 
-    // Show the demo window
-    bool show_demo_window = true;
-    ImGui::ShowDemoWindow(&show_demo_window);
-}
+    // Get the total screen size
+    ImVec2 screen_size = ImGui::GetIO().DisplaySize;
+    float quarter_width = screen_size.x * 0.25f;
+    float quarter_height = screen_size.y * 0.25f;
 
-void Application::render() {
-    ImGui::Render();
-    SDL_GL_MakeCurrent(window, gl_context);
-    glViewport(
-        0,
-        0,
-        static_cast<int>(ImGui::GetIO().DisplaySize.x),
-        static_cast<int>(ImGui::GetIO().DisplaySize.y)
+    // Code window on the far left
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(
+        ImVec2(quarter_width, screen_size.y - quarter_height)
     );
-    glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
-    glClear(GL_COLOR_BUFFER_BIT);
+
+    ImGui::Begin(
+        "Code",
+        nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoCollapse
+    );
+
+    // Display compilation errors if any
+    const auto& errors = assembler.get_errors();
+    if (!errors.empty()) {
+        ImGui::PushStyleColor(
+            ImGuiCol_Text,
+            ImVec4(1.0f, 0.0f, 0.0f, 1.0f)
+        ); // Red color
+        for (const auto& error : errors) {
+            ImGui::TextWrapped(
+                "Line %zu: %s",
+                error.line,
+                error.message.c_str()
+            );
+        }
+        ImGui::PopStyleColor();
+    }
+
+    ImGui::PushStyleColor(
+        ImGuiCol_Text,
+        ImVec4(1.0f, 1.0f, 1.0f, 1.0f)
+    ); // White text
+    ImGui::PushStyleColor(
+        ImGuiCol_FrameBg,
+        ImVec4(0.2f, 0.2f, 0.2f, 1.0f)
+    ); // Dark gray background
+
+    ImGui::PushFont(code_font);
+
+    ImVec2 available = ImGui::GetContentRegionAvail();
+    bool code_changed = ImGui::InputTextMultiline(
+        "##code_input",
+        &input_code,
+        available,
+        ImGuiInputTextFlags_AllowTabInput
+    );
+
+    if (code_changed) {
+        auto compile_result = assembler.assemble(input_code);
+        if (compile_result.has_value()) {
+            emulator =
+                std::make_unique<Emulator>(std::move(compile_result.value()));
+        }
+    }
+
+    ImGui::PopFont();
+    ImGui::PopStyleColor(2);
+    ImGui::End();
+
+    // Input window
+    ImGui::SetNextWindowPos(ImVec2(0, screen_size.y - quarter_height));
+    ImGui::SetNextWindowSize(ImVec2(quarter_width, quarter_height));
+    ImGui::Begin(
+        "Input",
+        nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoCollapse
+    );
+    ImGui::Text("Input panel");
+    // Add more instruction content here
+    ImGui::End();
+
+    // Instructions window in the middle
+    ImGui::SetNextWindowPos(ImVec2(quarter_width, 0));
+    ImGui::SetNextWindowSize(
+        ImVec2(quarter_width, screen_size.y - quarter_height)
+    );
+    ImGui::Begin(
+        "Debugger",
+        nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoCollapse
+    );
+
+    for (std::size_t i = 0; i < MEMORY_SIZE; ++i) {
+        auto opcode = emulator->get_memory()[i];
+        std::string_view mnemonic = "";
+        std::string address = "";
+        std::string_view indirect = "";
+        
+        if (opcode != 0) {
+            if (auto instruction = Instruction::from_opcode(opcode)) {
+                mnemonic = instruction->mnemonic;
+                if (instruction->mri) {
+                    address = std::format("{:03x}", instruction->get_address());
+                }
+                if (instruction->is_indirect()) {
+                    indirect = "I";
+                }
+            } else {
+                mnemonic = "Undefined";
+            }
+        }
+
+        ImGui::Text("%03zx:  %04x      %s %s %s", i, opcode, mnemonic.data(), address.data(), indirect.data()); 
+    } 
+
+    ImGui::End();
+
+    // Output window
+    ImGui::SetNextWindowPos(
+        ImVec2(quarter_width, screen_size.y - quarter_height)
+    );
+    ImGui::SetNextWindowSize(ImVec2(quarter_width, quarter_height));
+    ImGui::Begin(
+        "Output",
+        nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoCollapse
+    );
+    ImGui::Text("output Panel");
+    // Add more instruction content here
+    ImGui::End();
+
+    scheme.render(*emulator);
+
+    ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     SDL_GL_SwapWindow(window);
 }
@@ -132,4 +291,4 @@ Application::~Application() {
     SDL_Quit();
 }
 
-} // namespace mono
+} // namespace mano

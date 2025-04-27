@@ -1,9 +1,3 @@
 #include "emulator/emulator.hpp"
 
-namespace mano {
-
-    
-
-
-}
-
+namespace mano {}
