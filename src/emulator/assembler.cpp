@@ -252,7 +252,7 @@ std::optional<Emulator> Assembler::assemble(const std::string_view code_str) {
     symbol_table.clear();
     errors.clear();
     
-    memory.fill(0);
+    memory.fill(0xFFFF);
     
     code = code_str;
     index = 0;

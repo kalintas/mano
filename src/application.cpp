@@ -13,13 +13,13 @@
     #include <SDL_opengl.h>
 #endif
 
+#include "application.hpp"
 #include "emulator/instructions.hpp"
 
-#include "application.hpp"
 
 namespace mano {
 
-static constexpr std::size_t SCREEN_WIDTH = 1280;
+static constexpr std::size_t SCREEN_WIDTH = 1024;
 static constexpr std::size_t SCREEN_HEIGHT = 720;
 static constexpr float FSCREEN_WIDTH = static_cast<float>(SCREEN_WIDTH);
 static constexpr float FSCREEN_HEIGHT = static_cast<float>(SCREEN_HEIGHT);
@@ -38,6 +38,8 @@ RES, DEC 0
 
 END)";
 
+static constexpr unsigned int DEFAULT_CLOCK_RATE = 64;
+
 void main_loop(void* arg) {
     Application* app = static_cast<Application*>(arg);
     if (app) {
@@ -48,9 +50,10 @@ void main_loop(void* arg) {
 
 Application::Application() :
     scheme(FSCREEN_WIDTH * 0.5f, 0, FSCREEN_WIDTH * 0.5f, FSCREEN_HEIGHT),
-    input_code(EXAMPLE_CODE) {
-    
-    emulator = std::make_unique<Emulator>(assembler.assemble(EXAMPLE_CODE).value());
+    input_code(EXAMPLE_CODE),
+    clock_rate(DEFAULT_CLOCK_RATE) {
+    emulator =
+        std::make_unique<Emulator>(assembler.assemble(EXAMPLE_CODE).value());
 }
 
 bool Application::start() {
@@ -129,8 +132,6 @@ void Application::update() {
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL2_ProcessEvent(&event);
     }
-
-    scheme.update(*emulator);
 }
 
 void Application::render() {
@@ -207,19 +208,6 @@ void Application::render() {
     ImGui::PopStyleColor(2);
     ImGui::End();
 
-    // Input window
-    ImGui::SetNextWindowPos(ImVec2(0, screen_size.y - quarter_height));
-    ImGui::SetNextWindowSize(ImVec2(quarter_width, quarter_height));
-    ImGui::Begin(
-        "Input",
-        nullptr,
-        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
-            | ImGuiWindowFlags_NoCollapse
-    );
-    ImGui::Text("Input panel");
-    // Add more instruction content here
-    ImGui::End();
-
     // Instructions window in the middle
     ImGui::SetNextWindowPos(ImVec2(quarter_width, 0));
     ImGui::SetNextWindowSize(
@@ -232,13 +220,33 @@ void Application::render() {
             | ImGuiWindowFlags_NoCollapse
     );
 
+    if (ImGui::Button("Step")) {
+        emulator->cycle();
+        scheme.update(*emulator);
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Run")) {
+        for (unsigned int i = 0; i < clock_rate; ++i) {
+            emulator->cycle();
+            scheme.update(*emulator);
+        }
+    }
+    ImGui::SameLine();
+    ImGui::PushItemWidth(45.0f);
+    ImGui::InputScalar("Clock rate", ImGuiDataType_U32, &clock_rate);
+    ImGui::PopItemWidth();
+
+    ImGui::Text("%s", emulator->cpu.get_cycle_name().data());
+
     for (std::size_t i = 0; i < MEMORY_SIZE; ++i) {
         auto opcode = emulator->get_memory()[i];
         std::string_view mnemonic = "";
         std::string address = "";
         std::string_view indirect = "";
-        
-        if (opcode != 0) {
+
+        if (opcode != 0xFFFF) {
             if (auto instruction = Instruction::from_opcode(opcode)) {
                 mnemonic = instruction->mnemonic;
                 if (instruction->mri) {
@@ -252,16 +260,52 @@ void Application::render() {
             }
         }
 
-        ImGui::Text("%03zx:  %04x      %s %s %s", i, opcode, mnemonic.data(), address.data(), indirect.data()); 
-    } 
+        auto pc = emulator->cpu.registers.get(Registers::PC);
+        if (emulator->cpu.get_sequence_counter() >= 2) {
+            pc -= 1;
+        }
 
+        if (i == pc) {
+            ImGui::PushStyleColor(
+                ImGuiCol_Text,
+                ImVec4(1.0f, 0.0f, 0.0f, 1.0f)
+            );
+        }
+        ImGui::Text(
+            "%03zx:  %04x      %s %s %s",
+            i,
+            opcode,
+            mnemonic.data(),
+            address.data(),
+            indirect.data()
+        );
+        if (i == pc) {
+            ImGui::PopStyleColor();
+        }
+    }
+
+    ImGui::End();
+
+    // Input window
+    ImGui::SetNextWindowPos(ImVec2(0, screen_size.y - quarter_height));
+    ImGui::SetNextWindowSize(
+        ImVec2(screen_size.x / 6, screen_size.y - quarter_height)
+    );
+    ImGui::Begin(
+        "Input",
+        nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoCollapse
+    );
+    ImGui::Text("Input panel");
+    // Add more instruction content here
     ImGui::End();
 
     // Output window
     ImGui::SetNextWindowPos(
-        ImVec2(quarter_width, screen_size.y - quarter_height)
+        ImVec2(screen_size.x / 6, screen_size.y - quarter_height)
     );
-    ImGui::SetNextWindowSize(ImVec2(quarter_width, quarter_height));
+    ImGui::SetNextWindowSize(ImVec2(screen_size.x / 6, quarter_height));
     ImGui::Begin(
         "Output",
         nullptr,
@@ -269,6 +313,21 @@ void Application::render() {
             | ImGuiWindowFlags_NoCollapse
     );
     ImGui::Text("output Panel");
+    // Add more instruction content here
+    ImGui::End();
+
+    // Output window
+    ImGui::SetNextWindowPos(
+        ImVec2(screen_size.x / 3, screen_size.y - quarter_height)
+    );
+    ImGui::SetNextWindowSize(ImVec2(screen_size.x / 6, quarter_height));
+    ImGui::Begin(
+        "CPU",
+        nullptr,
+        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoCollapse
+    );
+    ImGui::Text("cpu");
     // Add more instruction content here
     ImGui::End();
 

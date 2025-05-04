@@ -8,23 +8,19 @@ namespace mano {
 
 class Emulator {
   public:
-    Emulator() : bus(cpu, memory) {}
     Emulator(Memory emulator_memory) : memory(emulator_memory), bus(cpu, memory)  {}
+    Emulator(Emulator&& emulator) : cpu(emulator.cpu), memory(std::move(emulator.memory)), bus(cpu, memory) {}
 
     const auto& get_memory() const {
         return memory;
     }
      
     void cycle() {
-        cpu.fetch();
-        cpu.decode();
-        cpu.execute();
-        cpu.store();
+        cpu.cycle_once(bus);
     }
 
   public:
     Cpu cpu;
-  private:
     Memory memory;
     Bus bus;
 };

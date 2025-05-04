@@ -33,6 +33,8 @@ class Application {
     std::string input_code;
     std::string user_input;
 
+    unsigned int clock_rate;
+
     SDL_Window* window = nullptr;
     SDL_GLContext gl_context = nullptr;
 

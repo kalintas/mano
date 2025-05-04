@@ -14,6 +14,8 @@ set(
     "${MANO_SRC_DIR}/ui/scheme.cpp" 
     "${MANO_SRC_DIR}/emulator/emulator.cpp" 
     "${MANO_SRC_DIR}/emulator/assembler.cpp" 
+    "${MANO_SRC_DIR}/emulator/cpu.cpp" 
+    "${MANO_SRC_DIR}/emulator/bus.cpp" 
 )
 
 set(MANO_IMGUI_BACKEND_DIR "${CMAKE_CURRENT_SOURCE_DIR}/imgui-backend")
