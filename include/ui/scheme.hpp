@@ -42,8 +42,6 @@ struct CircuitBox {
 
     void render(ImDrawList* draw_list) const;
 
-    static constexpr ImU32 BOX_COLOR = IM_COL32(180, 180, 180, 255);
-
     std::string name;
 
     float x;

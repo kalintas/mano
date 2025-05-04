@@ -108,6 +108,40 @@ bool Application::start() {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
+    // Setup light theme
+    ImGui::StyleColorsLight();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 4.0f;
+    style.FrameRounding = 4.0f;
+    style.PopupRounding = 4.0f;
+    style.ScrollbarRounding = 4.0f;
+    style.GrabRounding = 4.0f;
+    style.TabRounding = 4.0f;
+    
+    // Add borders to frames
+    style.FrameBorderSize = 1.0f;
+    style.WindowBorderSize = 1.0f;
+    
+    // Adjust colors for better contrast
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_WindowBg] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_Text] = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
+    colors[ImGuiCol_TextDisabled] = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
+    colors[ImGuiCol_FrameBg] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered] = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_FrameBgActive] = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    colors[ImGuiCol_Border] = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+    colors[ImGuiCol_Button] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_ButtonHovered] = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_ButtonActive] = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    colors[ImGuiCol_Header] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_HeaderHovered] = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_HeaderActive] = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    colors[ImGuiCol_ScrollbarBg] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.85f, 0.85f, 0.85f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
+    colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.75f, 0.75f, 0.75f, 1.00f);
+
     // First add the default font
     io.Fonts->AddFontDefault();
 
@@ -135,7 +169,7 @@ void Application::update() {
 }
 
 void Application::render() {
-    glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
+    glClearColor(1.00f, 1.00f, 1.00f, 1.00f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     ImGui_ImplOpenGL3_NewFrame();
@@ -176,7 +210,8 @@ void Application::render() {
         }
         ImGui::PopStyleColor();
     }
-
+    
+    /*
     ImGui::PushStyleColor(
         ImGuiCol_Text,
         ImVec4(1.0f, 1.0f, 1.0f, 1.0f)
@@ -185,7 +220,7 @@ void Application::render() {
         ImGuiCol_FrameBg,
         ImVec4(0.2f, 0.2f, 0.2f, 1.0f)
     ); // Dark gray background
-
+*/
     ImGui::PushFont(code_font);
 
     ImVec2 available = ImGui::GetContentRegionAvail();
@@ -205,7 +240,7 @@ void Application::render() {
     }
 
     ImGui::PopFont();
-    ImGui::PopStyleColor(2);
+    //ImGui::PopStyleColor(2);
     ImGui::End();
 
     // Instructions window in the middle
@@ -289,7 +324,7 @@ void Application::render() {
     // Input window
     ImGui::SetNextWindowPos(ImVec2(0, screen_size.y - quarter_height));
     ImGui::SetNextWindowSize(
-        ImVec2(screen_size.x / 6, screen_size.y - quarter_height)
+        ImVec2(screen_size.x / 6, quarter_height)
     );
     ImGui::Begin(
         "Input",

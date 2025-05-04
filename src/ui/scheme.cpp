@@ -9,11 +9,16 @@
 
 namespace mano::ui {
 
+static constexpr ImU32 BOX_COLOR = IM_COL32(240, 240, 240, 255);
+static constexpr ImU32 BOX_OUTLINE_COLOR = IM_COL32(200, 200, 200, 255);
+
 static constexpr ImU32 TEXT_COLOR = IM_COL32(0, 0, 0, 255);
 static constexpr ImU32 READ_LINE_COLOR =
     IM_COL32(153, 187, 255, 255); // Pale Green
 static constexpr ImU32 WRITE_LINE_COLOR =
     IM_COL32(255, 153, 187, 255); // Light Pink
+static constexpr ImU32 VALUE_CHANGED_COLOR = IM_COL32(0, 190, 0, 255); // Dark Green
+
 
 //static constexpr ImU32 READ_WRITE_LINE_COLOR =
 //   IM_COL32(130, 130, 130, 255);
@@ -21,6 +26,8 @@ static constexpr ImU32 WRITE_LINE_COLOR =
 void CircuitBox::render(ImDrawList* draw_list) const {
     draw_list
         ->AddRectFilled(ImVec2(x, y), ImVec2(x + width, y + height), BOX_COLOR);
+    draw_list
+        ->AddRect(ImVec2(x, y), ImVec2(x + width, y + height), BOX_OUTLINE_COLOR);
     if (!name.empty()) {
         draw_list->AddText(
             ImVec2(x + 10.0f, y + height * 0.25f),
@@ -42,7 +49,7 @@ void CircuitBox::render(ImDrawList* draw_list) const {
                 color = WRITE_LINE_COLOR;
                 break;
             case Path::ReadWrite:
-                color = BOX_COLOR;
+                color = BOX_OUTLINE_COLOR;
                 break;
         }
 
@@ -51,7 +58,7 @@ void CircuitBox::render(ImDrawList* draw_list) const {
             static_cast<int>(points.size()),
             color,
             ImDrawFlags_RoundCornersAll,
-            2.0f
+            4.0f
         );
 
         if (points.size() < 2) {
@@ -370,7 +377,12 @@ void Scheme::render(Emulator& emulator) {
     draw_list->AddRectFilled(
         ImVec2(x + BUS_X, y + padding),
         ImVec2(x + BUS_X + 30.0f, y + height - padding),
-        CircuitBox::BOX_COLOR
+        BOX_COLOR
+    );
+    draw_list->AddRect(
+        ImVec2(x + BUS_X, y + padding),
+        ImVec2(x + BUS_X + 30.0f, y + height - padding),
+        BOX_OUTLINE_COLOR  
     );
 
     // Add bus label
@@ -396,7 +408,7 @@ void Scheme::render(Emulator& emulator) {
             if (new_memory_io != old_memory_io) {
                 ImGui::PushStyleColor(
                     ImGuiCol_Text,
-                    ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
+                    ImGui::ColorConvertU32ToFloat4(VALUE_CHANGED_COLOR)
                 );
             }
 
@@ -406,7 +418,7 @@ void Scheme::render(Emulator& emulator) {
                     &mem,
                     nullptr,
                     nullptr,
-                    "%03X"
+                    "%04X"
                 )) {
                 emulator.cpu.registers.set(i, mem);
             }
@@ -454,7 +466,7 @@ void Scheme::render(Emulator& emulator) {
                 != new_registers.get(register_index)) {
                 ImGui::PushStyleColor(
                     ImGuiCol_Text,
-                    ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
+                    ImGui::ColorConvertU32ToFloat4(VALUE_CHANGED_COLOR)
                 );
             }
 
@@ -488,7 +500,7 @@ void Scheme::render(Emulator& emulator) {
     if (new_alu.operation != old_alu.operation) {
         ImGui::PushStyleColor(
             ImGuiCol_Text,
-            ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
+            ImGui::ColorConvertU32ToFloat4(VALUE_CHANGED_COLOR)
         );
     }
 
@@ -510,7 +522,7 @@ void Scheme::render(Emulator& emulator) {
         if (new_value != old_value) {
             ImGui::PushStyleColor(
                 ImGuiCol_Text,
-                ImVec4(0.0f, 1.0f, 0.0f, 1.0f)
+                ImGui::ColorConvertU32ToFloat4(VALUE_CHANGED_COLOR)
             );
         }
     

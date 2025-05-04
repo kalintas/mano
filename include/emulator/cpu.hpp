@@ -139,10 +139,13 @@ class Cpu {
 
     Instruction instruction;
     std::size_t sequence_counter = 0;
+    // Flags
+    // When the S is unset it stops the sequence_counter from counting 
+    bool start_stop = true; // Start stop flip-flop
+    // Indirect flag
+    bool indirect = false;
 
     std::string_view cycle_name;
-
-    bool indirect = false;
 };
 
 } // namespace mano

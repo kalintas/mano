@@ -7,7 +7,9 @@ namespace mano {
 
 void Cpu::cycle_once(Bus& bus) {
     auto cycle = sequence_counter;
-    sequence_counter += 1;
+    if (start_stop) {
+        sequence_counter += 1;
+    }
     switch (cycle) {
         // Fetch
         case 0:
@@ -85,6 +87,7 @@ void Cpu::cycle_once(Bus& bus) {
                         }
                         break;
                     case Instr::HLT:
+                        start_stop = false;
                         break;
                     case Instr::INP:
                         break;
