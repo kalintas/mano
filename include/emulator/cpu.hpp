@@ -12,6 +12,10 @@ class Bus;
 class Registers {
 public:
     enum Id : std::size_t { AR, PC, DR, AC, IR, TR, OUTR, INPR };
+    
+    Registers() {
+        registers[PC] = 0x1;
+    }
 
     static constexpr std::size_t REGISTER_COUNT = 8;
     
@@ -151,6 +155,8 @@ class Cpu {
     bool fgi = false;
     bool fgo = true;
     bool ien = false;
+    // Interrupt flag
+    bool r = false;
 
     Instruction instruction;
 

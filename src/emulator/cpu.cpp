@@ -10,6 +10,33 @@ void Cpu::cycle_once(Bus& bus) {
     if (start_stop) {
         sequence_counter += 1;
     }
+     
+    if (r) {
+        // Interrupt cycle.
+        switch (cycle) {
+            case 0:
+                // RT0: AR <- 0 TR <- PC
+                cycle_name = "Fetch RT0";
+                registers.set(Registers::AC, 0);
+                bus.load(Bus::Selection::TR, Bus::Selection::PC);
+                break;
+            case 1:
+                // RT1: M[AR] <- TR PC <- 0
+                cycle_name = "Fetch RT1";
+                bus.load(Bus::Selection::MemoryUnit, Bus::Selection::TR);
+                registers.set(Registers::PC, 0);
+                break;
+            case 2:
+                // RT2: PC <- PC + 1 IEN <- 0 R <- 0 SC <- 0
+                cycle_name = "Decode RT2";
+                registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                ien = false;
+                r = false;
+                sequence_counter = 0;
+                break;
+        }
+        return;
+    }
 
     switch (cycle) {
         // Fetch
@@ -120,6 +147,8 @@ void Cpu::cycle_once(Bus& bus) {
                 }
                 cycle_name = instruction.cycle_name;
                 sequence_counter = 0; // Reset the cycle counter.
+                // Set the interrupt flag.
+                r = ien && (fgi || fgo);
             } else if (indirect) {
                 cycle_name = "Decode D7'IT3";  
                 // AR <- M[AR]
@@ -228,6 +257,8 @@ void Cpu::cycle_once(Bus& bus) {
     }
 
     sequence_counter = 0;
+    // Set the interrupt flag.
+    r = ien && (fgi || fgo);
 }
 
 

@@ -2,6 +2,8 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
 
 #include "imgui.h"
@@ -18,7 +20,6 @@
 #include "application.hpp"
 #include "emulator/instructions.hpp"
 
-
 namespace mano {
 
 static constexpr std::size_t SCREEN_WIDTH = 1024;
@@ -26,9 +27,14 @@ static constexpr std::size_t SCREEN_HEIGHT = 720;
 static constexpr float FSCREEN_WIDTH = static_cast<float>(SCREEN_WIDTH);
 static constexpr float FSCREEN_HEIGHT = static_cast<float>(SCREEN_HEIGHT);
 
+static constexpr std::size_t IO_STRING_CAPACITY = 300;
+
 static constexpr auto EXAMPLE_CODE =
     R"(ORG 000
-LDA N1
+ZRO, BUN R1
+BUN S1
+ORG 10
+S1, LDA N1
 ADD N2
 STA SUM
 LDA N1
@@ -58,8 +64,9 @@ SZA
 LDA N1
 SZE
 LDA N1
+HLT
 
-INP
+R1, INP
 OUT
 SKI
 LDA N1
@@ -67,8 +74,7 @@ SKO
 LDA N1
 ION
 IOF
-
-HLT
+BUN ZRO I
 
 SUB, DEC 0
     LDA N2
@@ -97,7 +103,8 @@ void main_loop(void* arg) {
 Application::Application() :
     scheme(FSCREEN_WIDTH * 0.5f, 0, FSCREEN_WIDTH * 0.5f, FSCREEN_HEIGHT),
     input_code(EXAMPLE_CODE),
-    clock_rate(DEFAULT_CLOCK_RATE) {
+    clock_rate(DEFAULT_CLOCK_RATE),
+    input_string(IO_STRING_CAPACITY, '\0') {
     emulator =
         std::make_unique<Emulator>(assembler.assemble(EXAMPLE_CODE).value());
 }
@@ -163,11 +170,11 @@ bool Application::start() {
     style.ScrollbarRounding = 4.0f;
     style.GrabRounding = 4.0f;
     style.TabRounding = 4.0f;
-    
+
     // Add borders to frames
     style.FrameBorderSize = 1.0f;
     style.WindowBorderSize = 1.0f;
-    
+
     // Adjust colors for better contrast
     ImVec4* colors = style.Colors;
     colors[ImGuiCol_WindowBg] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
@@ -207,6 +214,26 @@ bool Application::start() {
     return true;
 }
 
+void Application::cycle_emulator() {
+
+    if (input_str_len > 0 && !emulator->cpu.fgi) {
+        const auto value = input_string[0];
+        input_string.erase(0, 1);
+
+        emulator->cpu.registers.set(Registers::INPR, static_cast<std::uint8_t>(value));
+        emulator->cpu.fgi = true;
+    }
+
+    emulator->cycle();
+    scheme.update(*emulator);
+
+    if (!emulator->cpu.fgo) {
+        const auto value = emulator->cpu.registers.get(Registers::OUTR);
+        output_string.push_back(static_cast<char>(value));
+        emulator->cpu.fgo = true;
+    }
+}
+
 void Application::update() {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -214,19 +241,23 @@ void Application::update() {
     }
 
     if (emulator_running) {
-        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        const auto elapsed_microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now - last_frame_tp).count();
+        std::chrono::steady_clock::time_point now =
+            std::chrono::steady_clock::now();
+        const auto elapsed_microseconds =
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                now - last_frame_tp
+            )
+                .count();
         elapsed_time += static_cast<double>(elapsed_microseconds) / 1000000.0;
         last_frame_tp = now;
-        const double cycles = std::round(elapsed_time * clock_rate); 
+        const double cycles = std::round(elapsed_time * clock_rate);
 
         std::cout << elapsed_time << " " << cycles << std::endl;
 
         for (int i = 0; i < static_cast<int>(cycles); ++i) {
-            emulator->cycle();
-            scheme.update(*emulator);
+            cycle_emulator();
         }
-        
+
         elapsed_time -= cycles * clock_period;
     }
 }
@@ -273,7 +304,7 @@ void Application::render() {
         }
         ImGui::PopStyleColor();
     }
-    
+
     ImGui::PushFont(code_font);
 
     ImVec2 available = ImGui::GetContentRegionAvail();
@@ -308,16 +339,16 @@ void Application::render() {
             | ImGuiWindowFlags_NoCollapse
     );
 
+    ImGui::BeginChild("Controls", ImVec2(0, 20), false);
     if (ImGui::Button("Step")) {
         if (!emulator_running) {
-            emulator->cycle();
-            scheme.update(*emulator);
+            cycle_emulator();
         }
     }
 
     ImGui::SameLine();
 
-    if (ImGui::Button(emulator_running ? "Stop" : "Run" )) {
+    if (ImGui::Button(emulator_running ? "Stop" : "Run")) {
         emulator_running = !emulator_running;
         if (emulator_running) {
             last_frame_tp = std::chrono::steady_clock::now();
@@ -330,6 +361,8 @@ void Application::render() {
         clock_period = 1.0 / static_cast<double>(clock_rate);
     }
     ImGui::PopItemWidth();
+    ImGui::EndChild();
+    ImGui::BeginChild("MemoryView", ImVec2(0, 0), true);
 
     for (std::size_t i = 0; i < MEMORY_SIZE; ++i) {
         auto opcode = emulator->get_memory()[i];
@@ -375,35 +408,49 @@ void Application::render() {
         }
     }
 
+    ImGui::EndChild();
     ImGui::End();
 
+    const auto small_window_width = screen_size.x / 6;
     // Input window
     ImGui::SetNextWindowPos(ImVec2(0, screen_size.y - quarter_height));
-    ImGui::SetNextWindowSize(
-        ImVec2(screen_size.x / 6, quarter_height)
-    );
+    ImGui::SetNextWindowSize(ImVec2(small_window_width, quarter_height));
     ImGui::Begin(
-        "Input",
+        "Input Stream",
         nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoCollapse
     );
-    ImGui::Text("Input panel");
+    if (ImGui::InputTextMultiline(
+        "##input",
+        input_string.data(),
+        IO_STRING_CAPACITY,
+        ImVec2(small_window_width - 15, quarter_height - 35)
+    )) {
+        input_str_len = std::strlen(input_string.c_str());
+    }
+
     // Add more instruction content here
     ImGui::End();
 
     // Output window
     ImGui::SetNextWindowPos(
-        ImVec2(screen_size.x / 6, screen_size.y - quarter_height)
+        ImVec2(small_window_width, screen_size.y - quarter_height)
     );
-    ImGui::SetNextWindowSize(ImVec2(screen_size.x / 6, quarter_height));
+    ImGui::SetNextWindowSize(ImVec2(small_window_width, quarter_height));
     ImGui::Begin(
-        "Output",
+        "Output Stream",
         nullptr,
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoCollapse
     );
-    ImGui::Text("output Panel");
+    ImGui::InputTextMultiline(
+        "##output",
+        output_string.data(),
+        output_string.size(),
+        ImVec2(small_window_width - 15, quarter_height - 35),
+        ImGuiInputTextFlags_ReadOnly
+    );
     // Add more instruction content here
     ImGui::End();
 
@@ -411,7 +458,7 @@ void Application::render() {
     ImGui::SetNextWindowPos(
         ImVec2(screen_size.x / 3, screen_size.y - quarter_height)
     );
-    ImGui::SetNextWindowSize(ImVec2(screen_size.x / 6, quarter_height));
+    ImGui::SetNextWindowSize(ImVec2(small_window_width, quarter_height));
     ImGui::Begin(
         "CPU",
         nullptr,
@@ -428,9 +475,13 @@ void Application::render() {
     ImGui::Checkbox("FGO", &emulator->cpu.fgo);
     ImGui::SameLine();
     ImGui::Checkbox("IEN", &emulator->cpu.ien);
+    ImGui::Checkbox("R", &emulator->cpu.r);
 
     ImGui::Text("Instruction: %s", emulator->cpu.instruction.mnemonic.data());
-    ImGui::TextWrapped("Description: %s", emulator->cpu.instruction.description.data());
+    ImGui::TextWrapped(
+        "Description: %s",
+        emulator->cpu.instruction.description.data()
+    );
 
     // Add more instruction content here
     ImGui::End();

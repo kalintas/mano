@@ -27,6 +27,8 @@ class Application {
     void render();
 
   private:
+    void cycle_emulator();
+
     Assembler assembler;
     std::unique_ptr<mano::Emulator> emulator;
 
@@ -40,6 +42,10 @@ class Application {
 
     std::chrono::steady_clock::time_point last_frame_tp;
     double elapsed_time = 0;
+    
+    std::size_t input_str_len = 0;
+    std::string input_string;
+    std::string output_string;
 
     SDL_Window* window = nullptr;
     SDL_GLContext gl_context = nullptr;
