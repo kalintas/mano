@@ -1,6 +1,5 @@
 #include <cctype>
 #include <cstdint>
-#include <iostream>
 #include <optional>
 #include <string_view>
 
@@ -13,7 +12,7 @@ std::optional<std::string_view>
 Assembler::get_next_token() {
     std::size_t start = std::string_view::npos;
     for (; index < code.size(); ++index) {
-        if (code[index] == '\n' || code[index] == '\r') {
+        if (code[index] == '\n' || code[index] == '\r' || code[index] == '/') {
             if (start == std::string_view::npos) {
                 return {};
             } else {
@@ -38,7 +37,7 @@ Assembler::get_next_token() {
 
 bool Assembler::is_token_label() {
     while (index < code.size()) {
-        if (code[index] == '\n' || code[index] == '\r') {
+        if (code[index] == '\n' || code[index] == '\r' || code[index] == '/') {
             return false;
         }
 
@@ -182,13 +181,13 @@ bool Assembler::second_pass() {
             }
             
             if (token == "DEC") {
-                if (auto val = get_next_int<std::int8_t>(10)) {
-                    memory[lc] = static_cast<std::uint8_t>(*val);
+                if (auto val = get_next_int<std::int16_t>(10)) {
+                    memory[lc] = static_cast<std::uint16_t>(*val);
                 } else {
                     return false;
                 }
             } else if (token == "HEX") {
-                if (auto val = get_next_int<std::uint8_t>(16)) {
+                if (auto val = get_next_int<std::uint16_t>(16)) {
                     memory[lc] = *val;
                 } else {
                     return false;

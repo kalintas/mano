@@ -48,7 +48,7 @@ struct Instruction {
      * Returns whether the instruction is indirect in MRI instructions.
      * */
     constexpr bool is_indirect() const {
-        return (opcode & 0x8000) != 0;   
+        return (opcode & 0x8000) != 0 && ((opcode & 0xF000) != 0xF000);   
     }
 
     static constexpr std::optional<Instruction> from_mnemonic(const std::string_view mnemonic);

@@ -10,6 +10,7 @@ void Cpu::cycle_once(Bus& bus) {
     if (start_stop) {
         sequence_counter += 1;
     }
+
     switch (cycle) {
         // Fetch
         case 0:
@@ -90,16 +91,29 @@ void Cpu::cycle_once(Bus& bus) {
                         start_stop = false;
                         break;
                     case Instr::INP:
+                        alu.load(registers, Registers::INPR);
+                        registers.set(Registers::AC, alu.operate(Instr::INP));
+                        fgi = false;
                         break;
                     case Instr::OUT:
+                        bus.load(Bus::Selection::OUTR, Bus::Selection::AC);
+                        fgo = false;
                         break;
                     case Instr::SKI:
+                        if (fgi) {
+                            registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                        }
                         break;
                     case Instr::SKO:
+                        if (fgo) {
+                            registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                        }
                         break;
                     case Instr::ION:
+                        ien = true;
                         break;
                     case Instr::IOF:
+                        ien = false;
                         break;
                     default:
                         break;

@@ -69,10 +69,18 @@ public:
                 result = a & b;
                 break;
             case Instr::ADD:
+            {
                 operation = "Add";
-                result = a + b;
+                std::uint32_t add_result = static_cast<std::uint32_t>(a) + static_cast<std::uint32_t>(b);
+                if (add_result > 0xFFFF) {
+                    e = true; 
+                }
+
+                result = static_cast<std::uint16_t>(add_result);
                 break;
+            }
             case Instr::LDA:
+            case Instr::INP:
                 operation = "Load";
                 result = a;
                 break;
@@ -135,15 +143,20 @@ class Cpu {
     Registers registers;
     Alu alu;
 
-  private:
-
-    Instruction instruction;
-    std::size_t sequence_counter = 0;
     // Flags
     // When the S is unset it stops the sequence_counter from counting 
     bool start_stop = true; // Start stop flip-flop
     // Indirect flag
     bool indirect = false;
+    bool fgi = false;
+    bool fgo = true;
+    bool ien = false;
+
+    Instruction instruction;
+
+  private:
+
+    std::size_t sequence_counter = 0;
 
     std::string_view cycle_name;
 };

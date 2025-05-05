@@ -5,6 +5,7 @@
 #include <emscripten.h>
 #include <emscripten/bind.h>
 
+#include <chrono>
 #include <memory>
 #include <string>
 
@@ -33,7 +34,12 @@ class Application {
     std::string input_code;
     std::string user_input;
 
-    unsigned int clock_rate;
+    bool emulator_running = false;
+    double clock_rate = 0.0;
+    double clock_period = 0.0; 
+
+    std::chrono::steady_clock::time_point last_frame_tp;
+    double elapsed_time = 0;
 
     SDL_Window* window = nullptr;
     SDL_GLContext gl_context = nullptr;

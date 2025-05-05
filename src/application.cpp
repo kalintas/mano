@@ -1,5 +1,7 @@
 #include <emscripten/html5.h>
 
+#include <chrono>
+#include <cmath>
 #include <iostream>
 
 #include "imgui.h"
@@ -25,20 +27,64 @@ static constexpr float FSCREEN_WIDTH = static_cast<float>(SCREEN_WIDTH);
 static constexpr float FSCREEN_HEIGHT = static_cast<float>(SCREEN_HEIGHT);
 
 static constexpr auto EXAMPLE_CODE =
-    R"(ORG 000  
-LDA N1  
-ADD N2  
-STA RES  
-HLT  
+    R"(ORG 000
+LDA N1
+ADD N2
+STA SUM
+LDA N1
+AND MSK
+STA RES
+LDA N1
+BSA SUB
+LDA N1
+ISZ CNT
+BUN SKP
+LDA N1
+SKP, LDA N1
 
-ORG 100  
-N1, DEC 5  
-N2, DEC 3  
-RES, DEC 0  
+CLA
+CLE
+LDA N1
+CMA
+CME
+CIR
+CIL
+INC
+SPA
+LDA N1
+SNA
+LDA N1
+SZA
+LDA N1
+SZE
+LDA N1
+
+INP
+OUT
+SKI
+LDA N1
+SKO
+LDA N1
+ION
+IOF
+
+HLT
+
+SUB, DEC 0
+    LDA N2
+    BUN SUB I
+
+ORG 100
+N1, DEC 5
+N2, DEC 3
+SUM, DEC 0
+MSK, HEX FFF0
+RES, DEC 0
+CNT, DEC 0
 
 END)";
 
-static constexpr unsigned int DEFAULT_CLOCK_RATE = 64;
+static constexpr double DEFAULT_CLOCK_RATE = 2.0;
 
 void main_loop(void* arg) {
     Application* app = static_cast<Application*>(arg);
@@ -166,6 +212,23 @@ void Application::update() {
     while (SDL_PollEvent(&event)) {
         ImGui_ImplSDL2_ProcessEvent(&event);
     }
+
+    if (emulator_running) {
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        const auto elapsed_microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now - last_frame_tp).count();
+        elapsed_time += static_cast<double>(elapsed_microseconds) / 1000000.0;
+        last_frame_tp = now;
+        const double cycles = std::round(elapsed_time * clock_rate); 
+
+        std::cout << elapsed_time << " " << cycles << std::endl;
+
+        for (int i = 0; i < static_cast<int>(cycles); ++i) {
+            emulator->cycle();
+            scheme.update(*emulator);
+        }
+        
+        elapsed_time -= cycles * clock_period;
+    }
 }
 
 void Application::render() {
@@ -211,16 +274,6 @@ void Application::render() {
         ImGui::PopStyleColor();
     }
     
-    /*
-    ImGui::PushStyleColor(
-        ImGuiCol_Text,
-        ImVec4(1.0f, 1.0f, 1.0f, 1.0f)
-    ); // White text
-    ImGui::PushStyleColor(
-        ImGuiCol_FrameBg,
-        ImVec4(0.2f, 0.2f, 0.2f, 1.0f)
-    ); // Dark gray background
-*/
     ImGui::PushFont(code_font);
 
     ImVec2 available = ImGui::GetContentRegionAvail();
@@ -236,11 +289,11 @@ void Application::render() {
         if (compile_result.has_value()) {
             emulator =
                 std::make_unique<Emulator>(std::move(compile_result.value()));
+            emulator_running = false;
         }
     }
 
     ImGui::PopFont();
-    //ImGui::PopStyleColor(2);
     ImGui::End();
 
     // Instructions window in the middle
@@ -256,24 +309,27 @@ void Application::render() {
     );
 
     if (ImGui::Button("Step")) {
-        emulator->cycle();
-        scheme.update(*emulator);
-    }
-
-    ImGui::SameLine();
-
-    if (ImGui::Button("Run")) {
-        for (unsigned int i = 0; i < clock_rate; ++i) {
+        if (!emulator_running) {
             emulator->cycle();
             scheme.update(*emulator);
         }
     }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button(emulator_running ? "Stop" : "Run" )) {
+        emulator_running = !emulator_running;
+        if (emulator_running) {
+            last_frame_tp = std::chrono::steady_clock::now();
+        }
+    }
+
     ImGui::SameLine();
     ImGui::PushItemWidth(45.0f);
-    ImGui::InputScalar("Clock rate", ImGuiDataType_U32, &clock_rate);
+    if (ImGui::InputDouble("Clock rate", &clock_rate, 0.0, 0.0, "%.2f")) {
+        clock_period = 1.0 / static_cast<double>(clock_rate);
+    }
     ImGui::PopItemWidth();
-
-    ImGui::Text("%s", emulator->cpu.get_cycle_name().data());
 
     for (std::size_t i = 0; i < MEMORY_SIZE; ++i) {
         auto opcode = emulator->get_memory()[i];
@@ -362,7 +418,20 @@ void Application::render() {
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoCollapse
     );
-    ImGui::Text("cpu");
+    ImGui::Text("Cycle: %s", emulator->cpu.get_cycle_name().data());
+    ImGui::Checkbox("S", &emulator->cpu.start_stop);
+    ImGui::SameLine();
+    ImGui::Checkbox("I", &emulator->cpu.indirect);
+
+    ImGui::Checkbox("FGI", &emulator->cpu.fgi);
+    ImGui::SameLine();
+    ImGui::Checkbox("FGO", &emulator->cpu.fgo);
+    ImGui::SameLine();
+    ImGui::Checkbox("IEN", &emulator->cpu.ien);
+
+    ImGui::Text("Instruction: %s", emulator->cpu.instruction.mnemonic.data());
+    ImGui::TextWrapped("Description: %s", emulator->cpu.instruction.description.data());
+
     // Add more instruction content here
     ImGui::End();
 
