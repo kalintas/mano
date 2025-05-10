@@ -57,13 +57,51 @@
                     console.log("Creating Application");
                     var app = new Module.Application();
                     console.log("Initializing");
-                    app.start();
+                    this.app = app;
+                    this.app.start();
                 } catch (e) {
                     // Only log real errors, not the emscripten unwind
                     if (e.toString() !== "unwind") {
                         console.error("Error:", e);
                     }
                 }
+            },
+            importCode: function() {
+                var input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.txt,.a,.asm,.mano,.code,*/*';
+                input.onchange = function(e) {
+                    var file = e.target.files[0];
+                    if (!file) { return; }
+                    var reader = new FileReader();
+                    reader.onload = function(evt) {
+                        var code = evt.target.result;
+                        window.Module.app.set_code(code);
+                    };
+                    reader.readAsText(file);
+                };
+                input.click();
+
+            },
+            exportCode: function() {
+                // Get the code from the application
+                var code = this.app.get_code();
+                
+                // Create a blob with the code content
+                var blob = new Blob([code], { type: 'text/plain' });
+                
+                // Create a download link
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'code.a';
+                
+                // Trigger the download
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
             }
         };
     </script>

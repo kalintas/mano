@@ -1,9 +1,11 @@
 #include <emscripten/html5.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <cctype>
 #include <iostream>
 
 #include "imgui.h"
@@ -253,8 +255,6 @@ void Application::update() {
         last_frame_tp = now;
         const double cycles = std::round(elapsed_time * clock_rate);
 
-        std::cout << elapsed_time << " " << cycles << std::endl;
-
         for (int i = 0; i < static_cast<int>(cycles); ++i) {
             cycle_emulator();
         }
@@ -306,8 +306,19 @@ void Application::render() {
         ImGui::PopStyleColor();
     }
 
-    ImGui::PushFont(code_font);
+    ImGui::BeginChild("Controls", ImVec2(0, 20), false);
 
+    if (ImGui::Button("Import")) {
+        emscripten_run_script("Module.importCode && Module.importCode()");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Export")) {
+        emscripten_run_script("Module.exportCode && Module.exportCode()");
+    }
+
+    ImGui::EndChild();
+    ImGui::PushFont(code_font);
+    
     ImVec2 available = ImGui::GetContentRegionAvail();
     bool code_changed = ImGui::InputTextMultiline(
         "##code_input",
@@ -504,6 +515,30 @@ Application::~Application() {
     if (window)
         SDL_DestroyWindow(window);
     SDL_Quit();
+}
+
+void Application::set_code(const std::string& code) {
+    input_code = code;
+    for (auto& c: input_code) {
+        c = static_cast<char>(std::toupper(c));
+    } 
+    
+    // Replace tabs with 2 space.
+    std::size_t index = 0;
+    while ((index = input_code.find('\t', index)) != code.npos) {
+        input_code.replace(index, 1, "  ");
+        index += 1; 
+    }
+
+    auto compile_result = assembler.assemble(input_code);
+    if (compile_result.has_value()) {
+        emulator = std::make_unique<Emulator>(std::move(compile_result.value()));
+        emulator_running = false;
+    }
+}
+
+std::string Application::get_code() const {
+    return input_code;
 }
 
 } // namespace mano

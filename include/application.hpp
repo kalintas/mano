@@ -26,6 +26,9 @@ class Application {
     void update();
     void render();
 
+    void set_code(const std::string& code); 
+    std::string get_code() const;
+
   private:
     void cycle_emulator();
 
@@ -57,7 +60,9 @@ class Application {
 EMSCRIPTEN_BINDINGS(module) {
     emscripten::class_<mano::Application>("Application")
         .constructor<>()
-        .function("start", &mano::Application::start);
+        .function("start", &mano::Application::start)
+        .function("set_code", &mano::Application::set_code)
+        .function("get_code", &mano::Application::get_code);
 }
 
 #endif
