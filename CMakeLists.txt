@@ -55,8 +55,15 @@ set_target_properties(
 # Emscripten specific settings
 if(EMSCRIPTEN)
     set(CMAKE_EXECUTABLE_SUFFIX ".js")
+
+    # Capture em++ flags
+    execute_process(COMMAND ${CMAKE_CXX_COMPILER} --cflags
+        OUTPUT_VARIABLE EM_CFLAGS
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    # Apply flags to the target
     set_target_properties(mano PROPERTIES
+        COMPILE_FLAGS "${EM_CFLAGS}"
         LINK_FLAGS "-s USE_GLFW=3 -s WASM=1 -s USE_WEBGL2=1 -s FULL_ES3=1 -s ALLOW_MEMORY_GROWTH=1 --bind"
     )
 endif()
-

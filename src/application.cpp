@@ -104,6 +104,7 @@ Application::Application() :
     scheme(FSCREEN_WIDTH * 0.5f, 0, FSCREEN_WIDTH * 0.5f, FSCREEN_HEIGHT),
     input_code(EXAMPLE_CODE),
     clock_rate(DEFAULT_CLOCK_RATE),
+    clock_period(1.0 / DEFAULT_CLOCK_RATE),
     input_string(IO_STRING_CAPACITY, '\0') {
     emulator =
         std::make_unique<Emulator>(assembler.assemble(EXAMPLE_CODE).value());
