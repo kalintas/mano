@@ -47,6 +47,16 @@ class Assembler {
                 add_error("Integer operand is out of bounds, max: {}", max);
                 return {};
             }
+            
+            for (auto ptr = result.ptr; ptr != token.data() + token.size(); ++ptr) {
+                if (*ptr == '/') {
+                    break;
+                }
+                if (!std::isspace(*ptr)) {
+                    add_error("Unexcepted value after the integer: {}", token);
+                    return {};
+                }
+            }
 
             if (result.ec == std::errc {}) {
                 return value;
@@ -77,7 +87,12 @@ class Assembler {
     std::string_view code;
     std::size_t index;
 
-    std::unordered_map<std::string_view, std::uint16_t> symbol_table;
+    struct Symbol {
+        std::uint16_t lc;
+        std::size_t line;
+    };
+
+    std::unordered_map<std::string_view, Symbol> symbol_table;
     std::vector<Error> errors;
 
     std::size_t current_line;

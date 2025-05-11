@@ -85,8 +85,8 @@ bool Assembler::line_end() {
                     } while (index < code.size() && !std::isspace(code[index]));
                     add_error("Unexpected symbol: {}", 
                         code.substr(start, index - start));
+                    return false;
                 }
-                return false;
         } 
     }
     return true;
@@ -121,7 +121,12 @@ bool Assembler::first_pass() {
             // Check if it is a label.
             if (is_token_label()) {
                 if (token.size() <= 3 && std::isalpha(token[0])) {
-                    symbol_table.insert({ token, lc });
+                    auto token_it = symbol_table.find(token);
+                    if (token_it != symbol_table.end()) {
+                        add_error("Token({}) already is defined in the line: {}", token, token_it->second.line);
+                    }
+
+                    symbol_table.insert({ token, { lc, current_line } });
                 } else {
                     add_error("Invalid symbol, symbols should be at most 3 characters long and must start with a letter: {}", token);
                 }
@@ -129,6 +134,7 @@ bool Assembler::first_pass() {
         
 
             lc += 1;
+            current_line += 1;
             if (lc >= MEMORY_SIZE) {
                 add_error("Program exceeds memory size");
                 return false;
@@ -220,7 +226,7 @@ bool Assembler::second_pass() {
                         std::uint16_t value = 
                             static_cast<std::uint16_t>(indirect << 15) |
                             static_cast<std::uint16_t>(instruction.opcode << 12) |
-                            symbol_it->second;   
+                            symbol_it->second.lc;   
                         
                         memory[lc] =  value; 
                     } else {

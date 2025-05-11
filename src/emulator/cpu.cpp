@@ -17,13 +17,14 @@ void Cpu::cycle_once(Bus& bus) {
             case 0:
                 // RT0: AR <- 0 TR <- PC
                 cycle_name = "Fetch RT0";
-                registers.set(Registers::AC, 0);
+                registers.set(Registers::AR, 0);
                 bus.load(Bus::Selection::TR, Bus::Selection::PC);
                 break;
             case 1:
                 // RT1: M[AR] <- TR PC <- 0
                 cycle_name = "Fetch RT1";
                 bus.load(Bus::Selection::MemoryUnit, Bus::Selection::TR);
+                bus.write_memory();
                 registers.set(Registers::PC, 0);
                 break;
             case 2:
@@ -220,9 +221,10 @@ void Cpu::cycle_once(Bus& bus) {
         case Instr::BSA:
             if (cycle == 4) {
                 cycle_name = "D5T4";
-                // M[AR] <- PC
+                // M[AR] <- PC, AR <- AR + 1
                 bus.load(Bus::Selection::MemoryUnit, Bus::Selection::PC);
                 bus.write_memory();
+                registers.set(Registers::AR, registers.get(Registers::AR) + 1);
                 return;
             } else {
                 cycle_name = "D5T5";

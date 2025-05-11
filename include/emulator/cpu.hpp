@@ -13,10 +13,6 @@ class Registers {
 public:
     enum Id : std::size_t { AR, PC, DR, AC, IR, TR, OUTR, INPR };
     
-    Registers() {
-        registers[PC] = 0x1;
-    }
-
     static constexpr std::size_t REGISTER_COUNT = 8;
     
     std::uint16_t get(Id reg) const {
@@ -90,7 +86,7 @@ public:
                 break;
             case Instr::CMA:
                 operation = "CMA";
-                result = ~a;
+                result = static_cast<std::uint16_t>(~a);
                 break;
             case Instr::CME:
                 operation = "CME";
@@ -153,7 +149,7 @@ class Cpu {
     // Indirect flag
     bool indirect = false;
     bool fgi = false;
-    bool fgo = true;
+    bool fgo = false;
     bool ien = false;
     // Interrupt flag
     bool r = false;

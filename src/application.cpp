@@ -1,6 +1,5 @@
 #include <emscripten/html5.h>
 
-#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -28,8 +27,6 @@ static constexpr std::size_t SCREEN_WIDTH = 1024;
 static constexpr std::size_t SCREEN_HEIGHT = 720;
 static constexpr float FSCREEN_WIDTH = static_cast<float>(SCREEN_WIDTH);
 static constexpr float FSCREEN_HEIGHT = static_cast<float>(SCREEN_HEIGHT);
-
-static constexpr std::size_t IO_STRING_CAPACITY = 300;
 
 static constexpr auto EXAMPLE_CODE =
     R"(ORG 000
@@ -106,8 +103,7 @@ Application::Application() :
     scheme(FSCREEN_WIDTH * 0.5f, 0, FSCREEN_WIDTH * 0.5f, FSCREEN_HEIGHT),
     input_code(EXAMPLE_CODE),
     clock_rate(DEFAULT_CLOCK_RATE),
-    clock_period(1.0 / DEFAULT_CLOCK_RATE),
-    input_string(IO_STRING_CAPACITY, '\0') {
+    clock_period(1.0 / DEFAULT_CLOCK_RATE) {
     emulator =
         std::make_unique<Emulator>(assembler.assemble(EXAMPLE_CODE).value());
 }
@@ -219,9 +215,9 @@ bool Application::start() {
 
 void Application::cycle_emulator() {
 
-    if (input_str_len > 0 && !emulator->cpu.fgi) {
-        const auto value = input_string[0];
-        input_string.erase(0, 1);
+    if (!input_stream_string.empty() && !emulator->cpu.fgi) {
+        const auto value = input_stream_string[0];
+        input_stream_string.erase(0, 1);
 
         emulator->cpu.registers.set(Registers::INPR, static_cast<std::uint8_t>(value));
         emulator->cpu.fgi = true;
@@ -229,11 +225,13 @@ void Application::cycle_emulator() {
 
     emulator->cycle();
     scheme.update(*emulator);
-
+    
     if (!emulator->cpu.fgo) {
-        const auto value = emulator->cpu.registers.get(Registers::OUTR);
-        output_string.push_back(static_cast<char>(value));
-        emulator->cpu.fgo = true;
+        if (output_stream_ready) {
+            const auto value = emulator->cpu.registers.get(Registers::OUTR);
+            output_stream_string.push_back(static_cast<char>(value));
+            emulator->cpu.fgo = true;
+        }
     }
 }
 
@@ -324,7 +322,11 @@ void Application::render() {
         "##code_input",
         &input_code,
         available,
-        ImGuiInputTextFlags_AllowTabInput
+        ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_CallbackCharFilter,
+        [] (ImGuiInputTextCallbackData* data) -> int {
+            data->EventChar = static_cast<ImWchar>(std::toupper(data->EventChar));
+            return 0;
+        }
     );
 
     if (code_changed) {
@@ -357,6 +359,12 @@ void Application::render() {
             cycle_emulator();
         }
     }
+    ImGui::SameLine();
+    if (ImGui::Button("Step Big")) {
+        do {
+            cycle_emulator();
+        } while (emulator->cpu.get_sequence_counter() != 0);
+    }
 
     ImGui::SameLine();
 
@@ -369,8 +377,11 @@ void Application::render() {
 
     ImGui::SameLine();
     ImGui::PushItemWidth(45.0f);
-    if (ImGui::InputDouble("Clock rate", &clock_rate, 0.0, 0.0, "%.2f")) {
+    if (ImGui::InputDouble("Hz", &clock_rate, 0.0, 0.0, "%.2f")) {
         clock_period = 1.0 / static_cast<double>(clock_rate);
+    }
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+        ImGui::SetTooltip("Clock rate of the CPU in Hertz.");
     }
     ImGui::PopItemWidth();
     ImGui::EndChild();
@@ -433,14 +444,10 @@ void Application::render() {
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoCollapse
     );
-    if (ImGui::InputTextMultiline(
+    ImGui::InputTextMultiline(
         "##input",
-        input_string.data(),
-        IO_STRING_CAPACITY,
-        ImVec2(small_window_width - 15, quarter_height - 35)
-    )) {
-        input_str_len = std::strlen(input_string.c_str());
-    }
+        &input_stream_string,
+        ImVec2(small_window_width - 15, quarter_height - 35));
 
     // Add more instruction content here
     ImGui::End();
@@ -456,11 +463,19 @@ void Application::render() {
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoCollapse
     );
+
+    ImGui::BeginChild("Controls", ImVec2(0, 20), false);
+    ImGui::Checkbox("Ready", &output_stream_ready);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+        ImGui::SetTooltip("Whether the output stream is ready\nto print characters");
+    }
+    ImGui::EndChild();
+
     ImGui::InputTextMultiline(
         "##output",
-        output_string.data(),
-        output_string.size(),
-        ImVec2(small_window_width - 15, quarter_height - 35),
+        output_stream_string.data(),
+        output_stream_string.size(),
+        ImVec2(small_window_width - 15, quarter_height - 60),
         ImGuiInputTextFlags_ReadOnly
     );
     // Add more instruction content here
