@@ -48,7 +48,8 @@ class Application {
     
     std::string input_stream_string;
     std::string output_stream_string;
-    bool output_stream_ready = false;
+    bool input_stream_open = false;
+    bool output_stream_open = false;
 
     SDL_Window* window = nullptr;
     SDL_GLContext gl_context = nullptr;

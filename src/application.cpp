@@ -215,7 +215,7 @@ bool Application::start() {
 
 void Application::cycle_emulator() {
 
-    if (!input_stream_string.empty() && !emulator->cpu.fgi) {
+    if (input_stream_open && !input_stream_string.empty() && !emulator->cpu.fgi) {
         const auto value = input_stream_string[0];
         input_stream_string.erase(0, 1);
 
@@ -227,9 +227,11 @@ void Application::cycle_emulator() {
     scheme.update(*emulator);
     
     if (!emulator->cpu.fgo) {
-        if (output_stream_ready) {
+        if (output_stream_open) {
             const auto value = emulator->cpu.registers.get(Registers::OUTR);
-            output_stream_string.push_back(static_cast<char>(value));
+            if (value != 0) {
+                output_stream_string.push_back(static_cast<char>(value));
+            }
             emulator->cpu.fgo = true;
         }
     }
@@ -444,10 +446,22 @@ void Application::render() {
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
             | ImGuiWindowFlags_NoCollapse
     );
+    ImGui::BeginChild("Controls", ImVec2(0, 20), false);
+    ImGui::Checkbox("Open", &input_stream_open);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+        ImGui::SetTooltip("Input stream will start reading characters when its open.");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Clear")) {
+        input_stream_string.clear();
+    }
+    ImGui::EndChild();
+
+
     ImGui::InputTextMultiline(
         "##input",
         &input_stream_string,
-        ImVec2(small_window_width - 15, quarter_height - 35));
+        ImVec2(small_window_width - 15, quarter_height - 60));
 
     // Add more instruction content here
     ImGui::End();
@@ -465,19 +479,25 @@ void Application::render() {
     );
 
     ImGui::BeginChild("Controls", ImVec2(0, 20), false);
-    ImGui::Checkbox("Ready", &output_stream_ready);
+    if (ImGui::Checkbox("Open", &output_stream_open)) {
+        emulator->cpu.fgo = output_stream_open;
+    }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
-        ImGui::SetTooltip("Whether the output stream is ready\nto print characters");
+        ImGui::SetTooltip("Output stream will start printing characters when its open.");
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Clear")) {
+        output_stream_string.clear();
     }
     ImGui::EndChild();
 
     ImGui::InputTextMultiline(
         "##output",
-        output_stream_string.data(),
-        output_stream_string.size(),
+        &output_stream_string,
         ImVec2(small_window_width - 15, quarter_height - 60),
         ImGuiInputTextFlags_ReadOnly
     );
+
     // Add more instruction content here
     ImGui::End();
 
