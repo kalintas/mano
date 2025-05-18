@@ -1,12 +1,14 @@
 
 #include "emulator/bus.hpp"
+
 #include <cstdint>
+
 #include "emulator/cpu.hpp"
 
 namespace mano {
 
 void Bus::read_memory() {
-    memory_io = memory[cpu.registers.get(Registers::AR)]; 
+    memory_io = memory[cpu.registers.get(Registers::AR)];
 }
 
 void Bus::write_memory() {
@@ -14,7 +16,6 @@ void Bus::write_memory() {
 }
 
 void Bus::load(Selection dest, Selection source) {
-    
     std::uint16_t value = 0;
     switch (source) {
         case Selection::AR:
@@ -36,7 +37,7 @@ void Bus::load(Selection dest, Selection source) {
             value = cpu.registers.get(Registers::TR);
             break;
         case Selection::MemoryUnit:
-            value = memory_io; 
+            value = memory_io;
             break;
         case Selection::OUTR:
         case Selection::None:
@@ -75,4 +76,4 @@ void Bus::load(Selection dest, Selection source) {
     last_source = source;
     transfer_value = value;
 }
-}
+} // namespace mano

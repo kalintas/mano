@@ -1,10 +1,10 @@
 #include <emscripten/html5.h>
 
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <cctype>
 #include <iostream>
 
 #include "imgui.h"
@@ -214,18 +214,21 @@ bool Application::start() {
 }
 
 void Application::cycle_emulator() {
-
-    if (input_stream_open && !input_stream_string.empty() && !emulator->cpu.fgi) {
+    if (input_stream_open && !input_stream_string.empty()
+        && !emulator->cpu.fgi) {
         const auto value = input_stream_string[0];
         input_stream_string.erase(0, 1);
 
-        emulator->cpu.registers.set(Registers::INPR, static_cast<std::uint8_t>(value));
+        emulator->cpu.registers.set(
+            Registers::INPR,
+            static_cast<std::uint8_t>(value)
+        );
         emulator->cpu.fgi = true;
     }
 
     emulator->cycle();
     scheme.update(*emulator);
-    
+
     if (!emulator->cpu.fgo) {
         if (output_stream_open) {
             const auto value = emulator->cpu.registers.get(Registers::OUTR);
@@ -318,15 +321,17 @@ void Application::render() {
 
     ImGui::EndChild();
     ImGui::PushFont(code_font);
-    
+
     ImVec2 available = ImGui::GetContentRegionAvail();
     bool code_changed = ImGui::InputTextMultiline(
         "##code_input",
         &input_code,
         available,
-        ImGuiInputTextFlags_AllowTabInput | ImGuiInputTextFlags_CallbackCharFilter,
-        [] (ImGuiInputTextCallbackData* data) -> int {
-            data->EventChar = static_cast<ImWchar>(std::toupper(data->EventChar));
+        ImGuiInputTextFlags_AllowTabInput
+            | ImGuiInputTextFlags_CallbackCharFilter,
+        [](ImGuiInputTextCallbackData* data) -> int {
+            data->EventChar =
+                static_cast<ImWchar>(std::toupper(data->EventChar));
             return 0;
         }
     );
@@ -449,7 +454,9 @@ void Application::render() {
     ImGui::BeginChild("Controls", ImVec2(0, 20), false);
     ImGui::Checkbox("Open", &input_stream_open);
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
-        ImGui::SetTooltip("Input stream will start reading characters when its open.");
+        ImGui::SetTooltip(
+            "Input stream will start reading characters when its open."
+        );
     }
     ImGui::SameLine();
     if (ImGui::Button("Clear")) {
@@ -457,11 +464,11 @@ void Application::render() {
     }
     ImGui::EndChild();
 
-
     ImGui::InputTextMultiline(
         "##input",
         &input_stream_string,
-        ImVec2(small_window_width - 15, quarter_height - 60));
+        ImVec2(small_window_width - 15, quarter_height - 60)
+    );
 
     // Add more instruction content here
     ImGui::End();
@@ -483,7 +490,9 @@ void Application::render() {
         emulator->cpu.fgo = output_stream_open;
     }
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
-        ImGui::SetTooltip("Output stream will start printing characters when its open.");
+        ImGui::SetTooltip(
+            "Output stream will start printing characters when its open."
+        );
     }
     ImGui::SameLine();
     if (ImGui::Button("Clear")) {
@@ -554,20 +563,21 @@ Application::~Application() {
 
 void Application::set_code(const std::string& code) {
     input_code = code;
-    for (auto& c: input_code) {
+    for (auto& c : input_code) {
         c = static_cast<char>(std::toupper(c));
-    } 
-    
+    }
+
     // Replace tabs with 2 space.
     std::size_t index = 0;
     while ((index = input_code.find('\t', index)) != code.npos) {
         input_code.replace(index, 1, "  ");
-        index += 1; 
+        index += 1;
     }
 
     auto compile_result = assembler.assemble(input_code);
     if (compile_result.has_value()) {
-        emulator = std::make_unique<Emulator>(std::move(compile_result.value()));
+        emulator =
+            std::make_unique<Emulator>(std::move(compile_result.value()));
         emulator_running = false;
     }
 }

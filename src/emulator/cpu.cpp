@@ -1,16 +1,16 @@
 #include "emulator/cpu.hpp"
+
 #include "emulator/bus.hpp"
 #include "emulator/instructions.hpp"
 
 namespace mano {
-
 
 void Cpu::cycle_once(Bus& bus) {
     auto cycle = sequence_counter;
     if (start_stop) {
         sequence_counter += 1;
     }
-     
+
     if (r) {
         // Interrupt cycle.
         switch (cycle) {
@@ -48,9 +48,9 @@ void Cpu::cycle_once(Bus& bus) {
             return;
         case 1:
             cycle_name = "Fetch R'T1";
-            // R'T1:  
+            // R'T1:
             // IR <- M[AR]
-            bus.read_memory(); 
+            bus.read_memory();
             bus.load(Bus::Selection::IR, Bus::Selection::MemoryUnit);
             // PC <- PC + 1
             registers.set(Registers::PC, registers.get(Registers::PC) + 1);
@@ -58,14 +58,17 @@ void Cpu::cycle_once(Bus& bus) {
         // Decode
         case 2:
             cycle_name = "Decode R'T2";
-            // R'T2:  
-            if (std::optional<Instruction> decode = Instruction::from_opcode(registers.get(Registers::IR))) {
+            // R'T2:
+            if (std::optional<Instruction> decode =
+                    Instruction::from_opcode(registers.get(Registers::IR))) {
                 instruction = decode.value();
-                // AR <- IR(0 ~ 11)   
-                bus.load(Bus::Selection::AR, Bus::Selection::IR);;
+                // AR <- IR(0 ~ 11)
+                bus.load(Bus::Selection::AR, Bus::Selection::IR);
+                ;
                 // I <- IR(15)
-                indirect = static_cast<bool>(registers.get(Registers::IR) >> 15);
-            } 
+                indirect =
+                    static_cast<bool>(registers.get(Registers::IR) >> 15);
+            }
             return;
         case 3:
             if (!instruction.mri) {
@@ -93,26 +96,38 @@ void Cpu::cycle_once(Bus& bus) {
                         registers.set(Registers::AC, alu.operate(Instr::CIL));
                         break;
                     case Instr::INC:
-                        registers.set(Registers::AC, ac + 1); 
+                        registers.set(Registers::AC, ac + 1);
                         break;
                     case Instr::SPA:
                         if ((ac >> 15) == 0) {
-                            registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                            registers.set(
+                                Registers::PC,
+                                registers.get(Registers::PC) + 1
+                            );
                         }
                         break;
                     case Instr::SNA:
                         if ((ac >> 15) != 0) {
-                            registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                            registers.set(
+                                Registers::PC,
+                                registers.get(Registers::PC) + 1
+                            );
                         }
                         break;
                     case Instr::SZA:
                         if (ac == 0) {
-                            registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                            registers.set(
+                                Registers::PC,
+                                registers.get(Registers::PC) + 1
+                            );
                         }
                         break;
                     case Instr::SZE:
                         if (alu.e == 0) {
-                            registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                            registers.set(
+                                Registers::PC,
+                                registers.get(Registers::PC) + 1
+                            );
                         }
                         break;
                     case Instr::HLT:
@@ -129,12 +144,18 @@ void Cpu::cycle_once(Bus& bus) {
                         break;
                     case Instr::SKI:
                         if (fgi) {
-                            registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                            registers.set(
+                                Registers::PC,
+                                registers.get(Registers::PC) + 1
+                            );
                         }
                         break;
                     case Instr::SKO:
                         if (fgo) {
-                            registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                            registers.set(
+                                Registers::PC,
+                                registers.get(Registers::PC) + 1
+                            );
                         }
                         break;
                     case Instr::ION:
@@ -151,19 +172,19 @@ void Cpu::cycle_once(Bus& bus) {
                 // Set the interrupt flag.
                 r = ien && (fgi || fgo);
             } else if (indirect) {
-                cycle_name = "Decode D7'IT3";  
+                cycle_name = "Decode D7'IT3";
                 // AR <- M[AR]
                 bus.read_memory();
                 bus.load(Bus::Selection::AR, Bus::Selection::MemoryUnit);
             } else {
-                cycle_name = "T3";  
+                cycle_name = "T3";
             }
             return;
         default:
             break;
     }
 
-    // Implement the MRI instructions. 
+    // Implement the MRI instructions.
     switch (instruction.instr) {
         case Instr::AND:
             if (cycle == 4) {
@@ -215,7 +236,7 @@ void Cpu::cycle_once(Bus& bus) {
             break;
         case Instr::BUN:
             cycle_name = "D4T4";
-            // PC <- AR 
+            // PC <- AR
             bus.load(Bus::Selection::PC, Bus::Selection::AR);
             break;
         case Instr::BSA:
@@ -228,7 +249,7 @@ void Cpu::cycle_once(Bus& bus) {
                 return;
             } else {
                 cycle_name = "D5T5";
-                bus.load(Bus::Selection::PC, Bus::Selection::AR);  
+                bus.load(Bus::Selection::PC, Bus::Selection::AR);
             }
             break;
         case Instr::ISZ:
@@ -241,16 +262,18 @@ void Cpu::cycle_once(Bus& bus) {
             } else if (cycle == 5) {
                 cycle_name = "D6T5";
                 // DR <- DR + 1
-                registers.set(Registers::DR, registers.get(Registers::DR) + 1); 
+                registers.set(Registers::DR, registers.get(Registers::DR) + 1);
                 return;
             } else {
                 cycle_name = "D6T6";
-                // M[AR] <- DR 
+                // M[AR] <- DR
                 bus.load(Bus::Selection::MemoryUnit, Bus::Selection::DR);
                 bus.write_memory();
                 if (registers.get(Registers::DR) == 0) {
-
-                    registers.set(Registers::PC, registers.get(Registers::PC) + 1);
+                    registers.set(
+                        Registers::PC,
+                        registers.get(Registers::PC) + 1
+                    );
                 }
             }
             break;
@@ -263,11 +286,10 @@ void Cpu::cycle_once(Bus& bus) {
     r = ien && (fgi || fgo);
 }
 
-
 void Cpu::cycle(Bus& bus, std::size_t cycle_count) {
     for (std::size_t i = 0; i += cycle_count; ++i) {
         cycle_once(bus);
     }
 }
 
-}
+} // namespace mano

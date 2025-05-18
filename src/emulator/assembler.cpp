@@ -1,15 +1,15 @@
+#include "emulator/assembler.hpp"
+
 #include <cctype>
 #include <cstdint>
 #include <optional>
 #include <string_view>
 
-#include "emulator/assembler.hpp"
 #include "emulator/instructions.hpp"
 
 namespace mano {
 
-std::optional<std::string_view>
-Assembler::get_next_token() {
+std::optional<std::string_view> Assembler::get_next_token() {
     std::size_t start = std::string_view::npos;
     for (; index < code.size(); ++index) {
         if (code[index] == '\n' || code[index] == '\r' || code[index] == '/') {
@@ -34,7 +34,6 @@ Assembler::get_next_token() {
     return {};
 }
 
-
 bool Assembler::is_token_label() {
     while (index < code.size()) {
         if (code[index] == '\n' || code[index] == '\r' || code[index] == '/') {
@@ -54,20 +53,20 @@ bool Assembler::is_token_label() {
 }
 
 bool Assembler::line_end() {
-    bool is_comment = false; 
+    bool is_comment = false;
     for (; index < code.size(); ++index) {
         switch (code[index]) {
-            // Recognize both carriage return, 
+            // Recognize both carriage return,
             //     newline or both as new line character.
             case '\r':
                 index += 1;
                 if (index < code.size() && code[index] == '\n') {
-                    index += 1; 
+                    index += 1;
                 }
                 current_line += 1;
                 return true;
             case '\n':
-                index += 1;       
+                index += 1;
                 current_line += 1;
                 return true;
             case '/':
@@ -83,11 +82,13 @@ bool Assembler::line_end() {
                     do {
                         index += 1;
                     } while (index < code.size() && !std::isspace(code[index]));
-                    add_error("Unexpected symbol: {}", 
-                        code.substr(start, index - start));
+                    add_error(
+                        "Unexpected symbol: {}",
+                        code.substr(start, index - start)
+                    );
                     return false;
                 }
-        } 
+        }
     }
     return true;
 }
@@ -102,13 +103,13 @@ bool Assembler::first_pass() {
                     if (!line_end()) {
                         return false;
                     }
-                } 
+                }
 
                 return true;
             }
             if (token == "ORG") {
-                if (auto lc_optional = 
-                    get_next_int<std::uint16_t>(16, MEMORY_SIZE)) {
+                if (auto lc_optional =
+                        get_next_int<std::uint16_t>(16, MEMORY_SIZE)) {
                     lc = *lc_optional;
                     if (!line_end()) {
                         return false;
@@ -123,15 +124,21 @@ bool Assembler::first_pass() {
                 if (token.size() <= 3 && std::isalpha(token[0])) {
                     auto token_it = symbol_table.find(token);
                     if (token_it != symbol_table.end()) {
-                        add_error("Token({}) already is defined in the line: {}", token, token_it->second.line);
+                        add_error(
+                            "Token({}) already is defined in the line: {}",
+                            token,
+                            token_it->second.line
+                        );
                     }
 
-                    symbol_table.insert({ token, { lc, current_line } });
+                    symbol_table.insert({token, {lc, current_line}});
                 } else {
-                    add_error("Invalid symbol, symbols should be at most 3 characters long and must start with a letter: {}", token);
+                    add_error(
+                        "Invalid symbol, symbols should be at most 3 characters long and must start with a letter: {}",
+                        token
+                    );
                 }
             }
-        
 
             lc += 1;
             current_line += 1;
@@ -140,13 +147,13 @@ bool Assembler::first_pass() {
                 return false;
             }
         }
-        
 
         // We don't check anything more than ORG, END and symbols in the first round.
         // So iterate until next line.
-        while (index < code.size() && code[index] != '\r' && code[index] != '\n') {
+        while (index < code.size() && code[index] != '\r'
+               && code[index] != '\n') {
             index += 1;
-        } 
+        }
         if (code[index] == '\r') {
             if (index + 1 < code.size() && code[index + 1] == '\n') {
                 index += 1;
@@ -182,10 +189,10 @@ bool Assembler::second_pass() {
                     token = *token_optional;
                 } else {
                     add_error("Excpected an instruction after the label.");
-                    return false; 
+                    return false;
                 }
             }
-            
+
             if (token == "DEC") {
                 if (auto val = get_next_int<std::int16_t>(10)) {
                     memory[lc] = static_cast<std::uint16_t>(*val);
@@ -198,49 +205,66 @@ bool Assembler::second_pass() {
                 } else {
                     return false;
                 }
-            } else if (auto instruction_optional = Instruction::from_mnemonic(token)) {
+            } else if (auto instruction_optional =
+                           Instruction::from_mnemonic(token)) {
                 auto instruction = *instruction_optional;
                 if (instruction.mri) {
-                    // A memory-reference instruction 
+                    // A memory-reference instruction
                     // Get the operands.
                     if (auto symbol_optional = get_next_token()) {
                         auto symbol = *symbol_optional;
-                        
+
                         auto symbol_it = symbol_table.find(symbol);
                         if (symbol_it == symbol_table.end()) {
-                            add_error("Unrecognized symbol \"{}\" after the {} instruction.", symbol, instruction.mnemonic);
-                            return false; 
+                            add_error(
+                                "Unrecognized symbol \"{}\" after the {} instruction.",
+                                symbol,
+                                instruction.mnemonic
+                            );
+                            return false;
                         }
-                         
+
                         std::uint16_t indirect = 0;
-                            
+
                         if (auto indirect_optional = get_next_token()) {
                             if (*indirect_optional == "I") {
                                 indirect = 1;
                             } else {
-                                add_error("Unrecognized symbol \"{}\" after the {} instruction, Expected the indirect address instruction detonator (I).", *indirect_optional, instruction.mnemonic);
+                                add_error(
+                                    "Unrecognized symbol \"{}\" after the {} instruction, Expected the indirect address instruction detonator (I).",
+                                    *indirect_optional,
+                                    instruction.mnemonic
+                                );
                                 return false;
                             }
                         }
 
-                        std::uint16_t value = 
-                            static_cast<std::uint16_t>(indirect << 15) |
-                            static_cast<std::uint16_t>(instruction.opcode << 12) |
-                            symbol_it->second.lc;   
-                        
-                        memory[lc] =  value; 
+                        std::uint16_t value =
+                            static_cast<std::uint16_t>(indirect << 15)
+                            | static_cast<std::uint16_t>(
+                                instruction.opcode << 12
+                            )
+                            | symbol_it->second.lc;
+
+                        memory[lc] = value;
                     } else {
-                        add_error("Excpected a symbol after the {} instruction.", instruction.mnemonic);
+                        add_error(
+                            "Excpected a symbol after the {} instruction.",
+                            instruction.mnemonic
+                        );
                         return false;
                     }
                 } else {
-                    memory[lc] =  instruction.opcode; 
+                    memory[lc] = instruction.opcode;
                 }
             } else {
-                add_error("Unrecognized operation, \"{}\" is not a valid instruction.", token);
-                return false; 
+                add_error(
+                    "Unrecognized operation, \"{}\" is not a valid instruction.",
+                    token
+                );
+                return false;
             }
-             
+
             lc += 1;
         }
 
@@ -256,9 +280,9 @@ std::optional<Emulator> Assembler::assemble(const std::string_view code_str) {
     // Reset the state.
     symbol_table.clear();
     errors.clear();
-    
+
     memory.fill(0xFFFF);
-    
+
     code = code_str;
     index = 0;
     current_line = 1;
@@ -270,7 +294,7 @@ std::optional<Emulator> Assembler::assemble(const std::string_view code_str) {
     if (!second_pass()) {
         return {};
     }
-    return Emulator{ memory };
+    return Emulator {memory};
 }
 
 } // namespace mano

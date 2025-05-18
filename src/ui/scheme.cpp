@@ -17,8 +17,8 @@ static constexpr ImU32 READ_LINE_COLOR =
     IM_COL32(153, 187, 255, 255); // Pale Green
 static constexpr ImU32 WRITE_LINE_COLOR =
     IM_COL32(255, 153, 187, 255); // Light Pink
-static constexpr ImU32 VALUE_CHANGED_COLOR = IM_COL32(0, 190, 0, 255); // Dark Green
-
+static constexpr ImU32 VALUE_CHANGED_COLOR =
+    IM_COL32(0, 190, 0, 255); // Dark Green
 
 //static constexpr ImU32 READ_WRITE_LINE_COLOR =
 //   IM_COL32(130, 130, 130, 255);
@@ -26,8 +26,11 @@ static constexpr ImU32 VALUE_CHANGED_COLOR = IM_COL32(0, 190, 0, 255); // Dark G
 void CircuitBox::render(ImDrawList* draw_list) const {
     draw_list
         ->AddRectFilled(ImVec2(x, y), ImVec2(x + width, y + height), BOX_COLOR);
-    draw_list
-        ->AddRect(ImVec2(x, y), ImVec2(x + width, y + height), BOX_OUTLINE_COLOR);
+    draw_list->AddRect(
+        ImVec2(x, y),
+        ImVec2(x + width, y + height),
+        BOX_OUTLINE_COLOR
+    );
     if (!name.empty()) {
         draw_list->AddText(
             ImVec2(x + 10.0f, y + height * 0.25f),
@@ -232,8 +235,8 @@ Scheme::Scheme(
     // ALU connections
     auto& alu = boxes[9];
     auto& dr = boxes[static_cast<std::size_t>(Bus::Selection::DR)];
-    
-    // ALU to DR 
+
+    // ALU to DR
     alu.add_path(
         {
             ImVec2(alu.x + alu_width, alu.y + 15.0f),
@@ -245,7 +248,7 @@ Scheme::Scheme(
         },
         CircuitBox::Path::Read
     );
-    
+
     // ALU to AC
     alu.add_path(
         {
@@ -258,7 +261,7 @@ Scheme::Scheme(
         CircuitBox::Path::Read
     );
 
-    // ALU to INPR 
+    // ALU to INPR
     alu.add_path(
         {
             ImVec2(alu.x + alu.width, alu.y + alu.height / 2),
@@ -293,7 +296,7 @@ void Scheme::update(Emulator& emulator) {
             boxes[static_cast<std::size_t>(emulator.bus.last_source)];
         auto& dest = boxes[static_cast<std::size_t>(emulator.bus.last_dest)];
 
-        Animation animation{ emulator.bus.transfer_value };
+        Animation animation {emulator.bus.transfer_value};
         animation.set_points({
             ImVec2(source.x, source.y + source.height / 2),
             ImVec2(x + BUS_X, source.y + source.height / 2),
@@ -306,9 +309,9 @@ void Scheme::update(Emulator& emulator) {
         emulator.bus.last_source = Bus::Selection::None;
         emulator.bus.transfer_value = 0;
     }
-    auto add_animation = [&] (Registers::Id reg, std::uint16_t value) {
-        Animation animation{ value };
-        
+    auto add_animation = [&](Registers::Id reg, std::uint16_t value) {
+        Animation animation {value};
+
         const auto& alu = boxes[9];
         std::size_t path_index = 0;
 
@@ -325,7 +328,7 @@ void Scheme::update(Emulator& emulator) {
             default:
                 return;
         }
-        
+
         const auto& points = alu.paths[path_index].points;
         std::vector<ImVec2> result;
         result.reserve(points.size());
@@ -343,8 +346,8 @@ void Scheme::update(Emulator& emulator) {
         add_animation(emulator.cpu.alu.b_register.value(), emulator.cpu.alu.a);
     }
 
-    emulator.cpu.alu.a_register = {}; 
-    emulator.cpu.alu.b_register = {}; 
+    emulator.cpu.alu.a_register = {};
+    emulator.cpu.alu.b_register = {};
 
     old_registers = new_registers;
     new_registers = emulator.cpu.registers;
@@ -382,7 +385,7 @@ void Scheme::render(Emulator& emulator) {
     draw_list->AddRect(
         ImVec2(x + BUS_X, y + padding),
         ImVec2(x + BUS_X + 30.0f, y + height - padding),
-        BOX_OUTLINE_COLOR  
+        BOX_OUTLINE_COLOR
     );
 
     // Add bus label
@@ -402,8 +405,9 @@ void Scheme::render(Emulator& emulator) {
             ImGui::SetCursorScreenPos(ImVec2(box.x + 10.0f, box.y + 15.0f));
             ImGui::PushItemWidth(40.0f);
 
-            std::uint16_t mem = emulator.get_memory(
-            )[emulator.cpu.registers.get(Registers::AR)];
+            std::uint16_t mem =
+                emulator
+                    .get_memory()[emulator.cpu.registers.get(Registers::AR)];
 
             if (new_memory_io != old_memory_io) {
                 ImGui::PushStyleColor(
@@ -505,10 +509,14 @@ void Scheme::render(Emulator& emulator) {
     }
 
     char operation_str[20] = {};
-    std::memcpy(operation_str, emulator.cpu.alu.operation.data(), emulator.cpu.alu.operation.size());
+    std::memcpy(
+        operation_str,
+        emulator.cpu.alu.operation.data(),
+        emulator.cpu.alu.operation.size()
+    );
     ImGui::SetCursorScreenPos(ImVec2(alu.x + 5.0f, alu.y + 5.0f));
     ImGui::InputText("##op", operation_str, sizeof(operation_str));
-    
+
     ImGui::SetCursorScreenPos(ImVec2(alu.x + 50.0f, alu.y + 7.5f));
     ImGui::PushStyleColor(ImGuiCol_Text, TEXT_COLOR);
     ImGui::Text("Op");
@@ -518,14 +526,17 @@ void Scheme::render(Emulator& emulator) {
         ImGui::PopStyleColor();
     }
 
-    auto render_alu_val = [&] (std::string label, std::uint16_t new_value, std::uint16_t old_value, float y_pos) {
+    auto render_alu_val = [&](std::string label,
+                              std::uint16_t new_value,
+                              std::uint16_t old_value,
+                              float y_pos) {
         if (new_value != old_value) {
             ImGui::PushStyleColor(
                 ImGuiCol_Text,
                 ImGui::ColorConvertU32ToFloat4(VALUE_CHANGED_COLOR)
             );
         }
-    
+
         auto value = new_value;
 
         ImGui::SetCursorScreenPos(ImVec2(alu.x + 5.0f, alu.y + y_pos));
@@ -537,17 +548,17 @@ void Scheme::render(Emulator& emulator) {
             nullptr,
             "%04X"
         );
-         
+
         if (new_value != old_value) {
             ImGui::PopStyleColor();
         }
-         
+
         ImGui::SetCursorScreenPos(ImVec2(alu.x + 50.0f, alu.y + y_pos + 2.5f));
         ImGui::PushStyleColor(ImGuiCol_Text, TEXT_COLOR);
         ImGui::Text("%s", label.c_str());
         ImGui::PopStyleColor();
     };
-    
+
     render_alu_val("A", new_alu.a, old_alu.a, 27.5f);
     render_alu_val("B", new_alu.b, old_alu.b, 50.f);
     render_alu_val("R", new_alu.result, old_alu.result, 72.5f);
@@ -567,8 +578,7 @@ void Scheme::render(Emulator& emulator) {
     ImGui::Checkbox("##E", &emulator.cpu.alu.e);
 
     for (auto it = animations.begin(); it != animations.end();) {
-        if (it - 1 != animations.end()
-            && (it - 1)->get_render_count() < 5) {
+        if (it - 1 != animations.end() && (it - 1)->get_render_count() < 5) {
             break;
         }
 
