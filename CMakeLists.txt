@@ -12,7 +12,6 @@ set(
     MANO_SRC_FILES 
     "${MANO_SRC_DIR}/application.cpp" 
     "${MANO_SRC_DIR}/ui/scheme.cpp" 
-    "${MANO_SRC_DIR}/emulator/emulator.cpp" 
     "${MANO_SRC_DIR}/emulator/assembler.cpp" 
     "${MANO_SRC_DIR}/emulator/cpu.cpp" 
     "${MANO_SRC_DIR}/emulator/bus.cpp" 
